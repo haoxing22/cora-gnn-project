@@ -1,0 +1,61 @@
+import torch
+from torch.utils.data import Dataset
+from torch_geometric.datasets import Planetoid
+
+class CoraDataset(Dataset):
+    def __init__(self, root='./data', train=True, transform=None):
+        self.root = root
+        self.train = train
+        self.transform = transform
+        
+        # 加载PyG的Cora数据集
+        self.pyg_dataset = Planetoid(root=self.root, name='Cora')
+        self.data = self.pyg_dataset[0]
+        
+        # 获取数据
+        self.features = self.data.x
+        self.labels = self.data.y
+        self.train_mask = self.data.train_mask
+        self.test_mask = self.data.test_mask
+        
+        # 选择训练集或测试集
+        if self.train:
+            self.indices = torch.where(self.train_mask)[0]
+        else:
+            self.indices = torch.where(self.test_mask)[0]
+            
+        self.features = self.features[self.indices]
+        self.labels = self.labels[self.indices]
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        feature = self.features[idx]
+        label = self.labels[idx]
+        
+        if self.transform:
+            feature = self.transform(feature)
+            
+        return feature, label
+
+# 使用示例
+if __name__ == "__main__":
+    # 创建数据集
+    train_dataset = CoraDataset(train=True)
+    test_dataset = CoraDataset(train=False)
+    
+    print(f"训练集大小: {len(train_dataset)}")
+    print(f"测试集大小: {len(test_dataset)}")
+    print(f"特征维度: {train_dataset.features.shape[1]}")
+    print(f"类别数: {len(torch.unique(train_dataset.labels))}")
+    
+    # 创建DataLoader
+    from torch.utils.data import DataLoader
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    
+    # 测试一个batch
+    for features, labels in train_loader:
+        print(f"Batch特征形状: {features.shape}")
+        print(f"Batch标签形状: {labels.shape}")
+        break
